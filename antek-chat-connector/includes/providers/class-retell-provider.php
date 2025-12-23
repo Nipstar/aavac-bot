@@ -163,7 +163,7 @@ class Antek_Chat_Retell_Provider extends Antek_Chat_Voice_Provider_Interface {
      * @since 1.1.0
      */
     public function get_agent_id() {
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
         return isset($settings['retell_agent_id']) ? sanitize_text_field($settings['retell_agent_id']) : null;
     }
 
@@ -174,7 +174,7 @@ class Antek_Chat_Retell_Provider extends Antek_Chat_Voice_Provider_Interface {
      * @since 1.1.0
      */
     public function is_enabled() {
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
 
         // Check if voice is enabled and Retell is selected
         return !empty($settings['voice_enabled'])
@@ -190,7 +190,7 @@ class Antek_Chat_Retell_Provider extends Antek_Chat_Voice_Provider_Interface {
      * @since 1.1.0
      */
     public function is_configured() {
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
 
         return !empty($settings['retell_api_key'])
             && !empty($settings['retell_agent_id']);
@@ -601,7 +601,7 @@ class Antek_Chat_Retell_Provider extends Antek_Chat_Voice_Provider_Interface {
         }
 
         // Check for optional text chat agent ID, fallback to main agent ID
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
         $agent_id = !empty($settings['retell_chat_agent_id'])
             ? sanitize_text_field($settings['retell_chat_agent_id'])
             : $this->get_agent_id();

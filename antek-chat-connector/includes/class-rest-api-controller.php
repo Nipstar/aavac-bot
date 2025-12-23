@@ -252,75 +252,108 @@ class Antek_Chat_REST_API_Controller {
      * @since 1.1.0
      */
     public function generate_token($request) {
-        $provider_name = $request->get_param('provider');
+        error_log('AAVAC Bot: Voice token generation requested');
 
-        // Rate limit check
-        $session_id = $this->get_session_id($request);
-        $rate_limit_id = 'token_' . $session_id . '_' . $provider_name;
+        // Get voice settings
+        $voice_settings = get_option('antek_chat_voice', []);
 
-        $rate_check = $this->rate_limiter->consume($rate_limit_id, 1);
-
-        if (is_wp_error($rate_check)) {
+        // Check if voice is enabled
+        if (empty($voice_settings['enabled'])) {
+            error_log('AAVAC Bot: Voice features not enabled');
             return new WP_REST_Response([
-                'error' => 'rate_limited',
-                'message' => $rate_check->get_error_message(),
-            ], 429);
+                'success' => false,
+                'error' => 'Voice features are not enabled. Please enable in Voice Settings.',
+            ], 400);
         }
 
-        try {
-            // Get provider instance
-            $provider = Antek_Chat_Voice_Provider_Factory::get_provider($provider_name);
+        // Get configuration
+        $n8n_url = $voice_settings['n8n_voice_token_url'] ?? '';
+        $agent_id = $voice_settings['retell_agent_id'] ?? '';
 
-            if (is_wp_error($provider)) {
-                return new WP_REST_Response([
-                    'error' => $provider->get_error_code(),
-                    'message' => $provider->get_error_message(),
-                ], 400);
-            }
-
-            // Check if provider is enabled
-            if (!$provider->is_enabled()) {
-                return new WP_REST_Response([
-                    'error' => 'provider_disabled',
-                    'message' => sprintf(
-                        __('%s is not enabled', 'antek-chat-connector'),
-                        $provider->get_provider_label()
-                    ),
-                ], 403);
-            }
-
-            // Prepare options
-            $options = [];
-
-            if ($request->has_param('agent_id')) {
-                $options['agent_id'] = $request->get_param('agent_id');
-            }
-
-            if ($request->has_param('metadata')) {
-                $options['metadata'] = $request->get_param('metadata');
-            }
-
-            // Generate token
-            $token_data = $provider->generate_access_token($options);
-
-            if (is_wp_error($token_data)) {
-                return new WP_REST_Response([
-                    'error' => $token_data->get_error_code(),
-                    'message' => $token_data->get_error_message(),
-                ], 500);
-            }
-
-            // Add rate limit headers
-            $rate_limit_headers = $this->rate_limiter->get_rate_limit_headers($rate_limit_id);
-
-            return new WP_REST_Response($token_data, 200, $rate_limit_headers);
-
-        } catch (Exception $e) {
+        // Validate configuration
+        if (empty($n8n_url) || empty($agent_id)) {
+            error_log('AAVAC Bot: Missing voice configuration - URL: ' . (!empty($n8n_url) ? 'set' : 'missing') . ', Agent: ' . (!empty($agent_id) ? 'set' : 'missing'));
             return new WP_REST_Response([
-                'error' => 'token_generation_failed',
-                'message' => $e->getMessage(),
+                'success' => false,
+                'error' => 'Voice not configured properly. Please check Voice Settings.',
+            ], 400);
+        }
+
+        // Prepare request data
+        $request_data = [
+            'agent_id' => $agent_id,
+            'user_id' => get_current_user_id(),
+            'session_id' => $request->get_param('session_id') ?? uniqid('session_'),
+            'page_url' => $request->get_param('page_url') ?? '',
+        ];
+
+        error_log('AAVAC Bot: Calling n8n workflow at: ' . $n8n_url);
+        error_log('AAVAC Bot: Request data: ' . json_encode($request_data));
+
+        // Call n8n workflow to get Retell access token
+        $response = wp_remote_post($n8n_url, [
+            'headers' => [
+                'Content-Type' => 'application/json',
+            ],
+            'body' => json_encode($request_data),
+            'timeout' => 15,
+        ]);
+
+        // Check for WordPress HTTP error
+        if (is_wp_error($response)) {
+            error_log('AAVAC Bot: n8n request failed - ' . $response->get_error_message());
+            return new WP_REST_Response([
+                'success' => false,
+                'error' => 'Failed to connect to voice service. Please try again.',
             ], 500);
         }
+
+        // Get response body
+        $http_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+
+        error_log('AAVAC Bot: n8n HTTP code: ' . $http_code);
+        error_log('AAVAC Bot: n8n response body: ' . $body);
+
+        // Check HTTP status
+        if ($http_code !== 200) {
+            error_log('AAVAC Bot: n8n returned error code: ' . $http_code);
+            return new WP_REST_Response([
+                'success' => false,
+                'error' => 'Voice service returned an error. Please check n8n workflow.',
+            ], 500);
+        }
+
+        // Parse response
+        $data = json_decode($body, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log('AAVAC Bot: Failed to parse n8n response: ' . json_last_error_msg());
+            return new WP_REST_Response([
+                'success' => false,
+                'error' => 'Invalid response from voice service.',
+            ], 500);
+        }
+
+        // Validate response data
+        if (empty($data['success']) || empty($data['access_token'])) {
+            error_log('AAVAC Bot: Invalid token response - missing success or access_token');
+            return new WP_REST_Response([
+                'success' => false,
+                'error' => 'Voice service did not return a valid token.',
+            ], 500);
+        }
+
+        error_log('AAVAC Bot: Token generated successfully - Call ID: ' . ($data['call_id'] ?? 'unknown'));
+
+        // Return token to frontend
+        return new WP_REST_Response([
+            'success' => true,
+            'access_token' => $data['access_token'],
+            'call_id' => $data['call_id'] ?? '',
+            'agent_id' => $data['agent_id'] ?? $agent_id,
+            'sample_rate' => $data['sample_rate'] ?? 24000,
+        ], 200);
     }
 
     /**
@@ -602,74 +635,49 @@ class Antek_Chat_REST_API_Controller {
      * @since 1.1.0
      */
     public function get_providers($request) {
-        error_log('Antek Chat: get_providers() called');
+        error_log('AAVAC Bot: get_providers() called');
 
-        $voice_settings = get_option('antek_chat_voice_settings', []);
-        error_log('Antek Chat: Voice settings: ' . print_r($voice_settings, true));
+        // Get voice settings
+        $voice_settings = get_option('antek_chat_voice', []);
+
+        error_log('AAVAC Bot: Voice settings: ' . json_encode($voice_settings));
 
         // Check if voice is enabled
-        $voice_enabled = !empty($voice_settings['voice_enabled']) || !empty($voice_settings['enabled']);
-        error_log('Antek Chat: Voice enabled check: ' . ($voice_enabled ? 'YES' : 'NO'));
+        $voice_enabled = !empty($voice_settings['enabled']);
 
         if (!$voice_enabled) {
-            error_log('Antek Chat: Voice not enabled - returning error');
+            error_log('AAVAC Bot: Voice not enabled');
             return new WP_REST_Response([
                 'success' => false,
-                'error' => 'Voice not enabled in settings',
-                'debug' => [
-                    'settings_exist' => !empty($voice_settings),
-                    'voice_enabled_key' => isset($voice_settings['voice_enabled']),
-                    'enabled_key' => isset($voice_settings['enabled']),
-                ]
-            ], 200); // Use 200 instead of 400 so JS can read the error
+                'error' => 'Voice features are not enabled',
+            ], 200);
         }
 
-        $provider = $voice_settings['voice_provider'] ?? $voice_settings['provider'] ?? 'retell';
-        error_log('Antek Chat: Provider type: ' . $provider);
+        // Get configuration
+        $n8n_url = $voice_settings['n8n_voice_token_url'] ?? '';
+        $agent_id = $voice_settings['retell_agent_id'] ?? '';
 
-        $config = [];
-
-        if ($provider === 'retell') {
-            $agent_id = $voice_settings['retell_agent_id'] ?? '';
-            error_log('Antek Chat: Retell Agent ID: ' . $agent_id);
-
-            if (empty($agent_id)) {
-                error_log('Antek Chat: Missing Retell Agent ID');
-                return new WP_REST_Response([
-                    'success' => false,
-                    'error' => 'Retell Agent ID not configured',
-                ], 200);
-            }
-
-            $config = [
-                'provider' => 'retell',
-                'agentId' => $agent_id,
-            ];
-        } elseif ($provider === 'elevenlabs') {
-            $agent_id = $voice_settings['elevenlabs_agent_id'] ?? '';
-            error_log('Antek Chat: ElevenLabs Agent ID: ' . $agent_id);
-
-            if (empty($agent_id)) {
-                error_log('Antek Chat: Missing ElevenLabs Agent ID');
-                return new WP_REST_Response([
-                    'success' => false,
-                    'error' => 'ElevenLabs Agent ID not configured',
-                ], 200);
-            }
-
-            $config = [
-                'provider' => 'elevenlabs',
-                'agentId' => $agent_id,
-                'isPublic' => $voice_settings['elevenlabs_public_agent'] ?? false,
-            ];
+        // Validate configuration
+        if (empty($n8n_url) || empty($agent_id)) {
+            error_log('AAVAC Bot: Voice configuration incomplete');
+            return new WP_REST_Response([
+                'success' => false,
+                'error' => 'Voice not configured properly. Check Voice Settings.',
+            ], 200);
         }
 
-        error_log('Antek Chat: Returning config: ' . print_r($config, true));
+        error_log('AAVAC Bot: Returning Retell provider config');
 
+        // Return valid provider configuration
         return new WP_REST_Response([
             'success' => true,
-            'provider' => $provider,
-            'config' => $config,
+            'provider' => 'retell',
+            'config' => [
+                'provider' => 'retell',
+                'agentId' => $agent_id,
+                'sampleRate' => 24000,
+                'enabled' => true,
+            ],
         ], 200);
     }
 
@@ -828,21 +836,6 @@ class Antek_Chat_REST_API_Controller {
                     'call_id' => 'test_call_' . time(),
                     'end_reason' => 'user_hangup',
                     'call_duration' => 120,
-                ],
-            ],
-            'elevenlabs' => [
-                'conversation_initiation_metadata' => [
-                    'type' => 'conversation_initiation_metadata',
-                    'conversation_initiation_metadata_event' => [
-                        'conversation_id' => 'test_conv_' . time(),
-                        'agent_id' => 'test_agent',
-                    ],
-                ],
-                'user_transcript' => [
-                    'type' => 'user_transcript',
-                    'user_transcription_event' => [
-                        'user_transcript' => 'Hello, this is a test',
-                    ],
                 ],
             ],
         ];

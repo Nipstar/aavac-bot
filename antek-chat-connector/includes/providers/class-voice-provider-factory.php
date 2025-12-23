@@ -123,7 +123,7 @@ class Antek_Chat_Voice_Provider_Factory {
      * @since 1.1.0
      */
     public static function get_enabled_provider() {
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
 
         // Check if voice is enabled
         if (empty($settings['voice_enabled'])) {

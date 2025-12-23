@@ -3,7 +3,7 @@
  * Plugin Name: AAVAC Bot
  * Plugin URI: https://www.antekautomation.com
  * Description: Advanced AI Voice & Chat connector powered by Retell AI, with secure encryption, media uploads, and enterprise-grade webhook authentication
- * Version: 1.2.1
+ * Version: 1.2.2
  * Author: Antek Automation
  * Author URI: https://www.antekautomation.com
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ANTEK_CHAT_VERSION', '1.2.1');
+define('ANTEK_CHAT_VERSION', '1.2.2');
 define('ANTEK_CHAT_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ANTEK_CHAT_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('ANTEK_CHAT_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -54,6 +54,28 @@ require_once ANTEK_CHAT_PLUGIN_DIR . 'includes/class-rest-api-controller.php';
 require_once ANTEK_CHAT_PLUGIN_DIR . 'includes/class-webhook-authenticator.php';
 require_once ANTEK_CHAT_PLUGIN_DIR . 'includes/class-async-job-processor.php';
 require_once ANTEK_CHAT_PLUGIN_DIR . 'includes/class-media-manager.php';
+
+/**
+ * Migrate voice settings from old to new structure
+ *
+ * @since 1.2.2
+ */
+function antek_chat_migrate_voice_settings() {
+    $old_settings = get_option('antek_chat_voice_settings', []);
+    $new_settings = get_option('antek_chat_voice', []);
+
+    // Only migrate if new settings empty but old settings exist
+    if (empty($new_settings) && !empty($old_settings)) {
+        $migrated = [
+            'enabled' => $old_settings['voice_enabled'] ?? false,
+            'retell_agent_id' => $old_settings['retell_agent_id'] ?? '',
+            'n8n_voice_token_url' => $old_settings['n8n_voice_token_url'] ?? '',
+        ];
+        update_option('antek_chat_voice', $migrated);
+        error_log('AAVAC Bot: Migrated voice settings from v1.1.0 to v1.2.2');
+    }
+}
+add_action('plugins_loaded', 'antek_chat_migrate_voice_settings');
 
 /**
  * Activation hook - sets up plugin on activation

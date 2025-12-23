@@ -62,7 +62,7 @@ class Antek_Chat_N8n_Retell_Provider extends Antek_Chat_Voice_Provider_Interface
      */
     public function generate_access_token($options = []) {
         // Get n8n configuration
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
         $n8n_base_url = $settings['n8n_base_url'] ?? '';
         $n8n_voice_endpoint = $settings['n8n_voice_endpoint'] ?? '/webhook/wordpress-retell-create-call';
 
@@ -187,7 +187,7 @@ class Antek_Chat_N8n_Retell_Provider extends Antek_Chat_Voice_Provider_Interface
      * @since 1.2.0
      */
     public function get_agent_id() {
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
         return isset($settings['n8n_retell_agent_id']) ? sanitize_text_field($settings['n8n_retell_agent_id']) : null;
     }
 
@@ -198,7 +198,7 @@ class Antek_Chat_N8n_Retell_Provider extends Antek_Chat_Voice_Provider_Interface
      * @since 1.2.0
      */
     public function is_enabled() {
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
 
         // Check if voice is enabled and n8n-retell is selected
         return !empty($settings['voice_enabled'])
@@ -214,7 +214,7 @@ class Antek_Chat_N8n_Retell_Provider extends Antek_Chat_Voice_Provider_Interface
      * @since 1.2.0
      */
     public function is_configured() {
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
 
         return !empty($settings['n8n_base_url'])
             && !empty($settings['n8n_voice_endpoint'])
@@ -333,7 +333,7 @@ class Antek_Chat_N8n_Retell_Provider extends Antek_Chat_Voice_Provider_Interface
      * @since 1.2.0
      */
     public function test_connection() {
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
         $n8n_base_url = $settings['n8n_base_url'] ?? '';
 
         if (empty($n8n_base_url)) {
@@ -395,7 +395,7 @@ class Antek_Chat_N8n_Retell_Provider extends Antek_Chat_Voice_Provider_Interface
      * @since 1.2.0
      */
     public function send_text_message($message, $context = []) {
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
         $text_mode = $settings['n8n_text_mode'] ?? 'simple';
 
         $this->log('Sending text message via n8n', 'info', [
@@ -499,7 +499,7 @@ class Antek_Chat_N8n_Retell_Provider extends Antek_Chat_Voice_Provider_Interface
         }
 
         // Get n8n message endpoint
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
         $n8n_base_url = $settings['n8n_base_url'] ?? '';
         $n8n_message_endpoint = $settings['n8n_text_message_endpoint'] ?? '/webhook/retell-send-message';
 
@@ -604,7 +604,7 @@ class Antek_Chat_N8n_Retell_Provider extends Antek_Chat_Voice_Provider_Interface
         // Create new chat session via n8n
         $this->log('Creating new n8n chat session', 'info', ['session_id' => $session_id]);
 
-        $settings = get_option('antek_chat_voice_settings', []);
+        $settings = get_option('antek_chat_voice', []);
         $n8n_base_url = $settings['n8n_base_url'] ?? '';
         $n8n_session_endpoint = $settings['n8n_text_session_endpoint'] ?? '/webhook/retell-create-chat-session';
 

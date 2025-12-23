@@ -160,14 +160,6 @@ class Antek_Chat_Admin_Settings {
             $sanitized['n8n_webhook_url'] = esc_url_raw($input['n8n_webhook_url']);
         }
 
-        // Legacy settings (keep for backward compatibility)
-        if (isset($input['elevenlabs_api_key'])) {
-            $sanitized['elevenlabs_api_key'] = sanitize_text_field($input['elevenlabs_api_key']);
-        }
-
-        if (isset($input['elevenlabs_voice_id'])) {
-            $sanitized['elevenlabs_voice_id'] = sanitize_text_field($input['elevenlabs_voice_id']);
-        }
 
         $sanitized['widget_enabled'] = isset($input['widget_enabled']) ? (bool) $input['widget_enabled'] : false;
         $sanitized['voice_enabled'] = isset($input['voice_enabled']) ? (bool) $input['voice_enabled'] : false;
@@ -403,7 +395,7 @@ class Antek_Chat_Admin_Settings {
 
         // Voice provider selection
         if (isset($input['voice_provider'])) {
-            $allowed_providers = array('retell', 'elevenlabs', 'n8n-retell');
+            $allowed_providers = array('retell', 'n8n-retell');
             $sanitized['voice_provider'] = in_array($input['voice_provider'], $allowed_providers)
                 ? $input['voice_provider']
                 : 'retell';
@@ -430,36 +422,6 @@ class Antek_Chat_Admin_Settings {
             $sanitized['retell_chat_agent_id'] = sanitize_text_field($input['retell_chat_agent_id']);
         }
 
-        // ElevenLabs settings (encrypt API key)
-        if (isset($input['elevenlabs_api_key']) && !empty($input['elevenlabs_api_key'])) {
-            // Only encrypt if it's a new key (not already encrypted)
-            if (strpos($input['elevenlabs_api_key'], '***') === false) {
-                $sanitized['elevenlabs_api_key'] = $this->encryption->encrypt(sanitize_text_field($input['elevenlabs_api_key']));
-            } else {
-                // Keep existing encrypted value
-                $existing = get_option('antek_chat_voice_settings', array());
-                $sanitized['elevenlabs_api_key'] = isset($existing['elevenlabs_api_key']) ? $existing['elevenlabs_api_key'] : '';
-            }
-        }
-
-        if (isset($input['elevenlabs_agent_id'])) {
-            $sanitized['elevenlabs_agent_id'] = sanitize_text_field($input['elevenlabs_agent_id']);
-        }
-
-        // ElevenLabs chat agent ID (optional, separate from voice)
-        if (isset($input['elevenlabs_chat_agent_id'])) {
-            $sanitized['elevenlabs_chat_agent_id'] = sanitize_text_field($input['elevenlabs_chat_agent_id']);
-        }
-
-        $sanitized['elevenlabs_public_agent'] = isset($input['elevenlabs_public_agent']) ? (bool) $input['elevenlabs_public_agent'] : false;
-
-        // Connection type
-        if (isset($input['elevenlabs_connection_type'])) {
-            $allowed_types = array('websocket', 'webrtc');
-            $sanitized['elevenlabs_connection_type'] = in_array($input['elevenlabs_connection_type'], $allowed_types)
-                ? $input['elevenlabs_connection_type']
-                : 'websocket';
-        }
 
         // Use Retell Chat toggle
         $sanitized['use_retell_chat'] = isset($input['use_retell_chat']) ? (bool) $input['use_retell_chat'] : false;

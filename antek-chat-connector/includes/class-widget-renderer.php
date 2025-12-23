@@ -273,8 +273,8 @@ class Antek_Chat_Widget_Renderer {
         wp_add_inline_style('antek-chat-widget', $dynamic_css);
 
         // CRITICAL: Load Retell SDK in HEAD (not footer) to ensure it's available
-        $voice_settings = get_option('antek_chat_voice_settings', array());
-        $voice_enabled = !empty($voice_settings['voice_enabled']);
+        $voice_settings = get_option('antek_chat_voice', array());
+        $voice_enabled = !empty($voice_settings['enabled']);
 
         if ($voice_enabled) {
             error_log('Antek Chat: Voice enabled - loading Retell SDK and provider scripts');
@@ -284,9 +284,9 @@ class Antek_Chat_Widget_Renderer {
             // n8n returns genuine Retell access tokens that require the SDK
             wp_enqueue_script(
                 'retell-web-sdk',
-                'https://cdn.jsdelivr.net/npm/retell-client-js-sdk@2.0.0/dist/retell-client-js.min.js',
+                'https://cdn.jsdelivr.net/npm/retell-client-js-sdk@2.3.0/dist/retell-client-js-sdk.min.js',
                 array(),
-                '2.0.0',
+                '2.3.0',
                 false // Load in HEAD, not footer
             );
 
