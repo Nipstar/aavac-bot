@@ -522,8 +522,7 @@ class Antek_Chat_REST_API_Controller {
 
                 try {
                     // Get voice provider instance via factory (supports 'retell' and 'n8n-retell')
-                    $factory = new Antek_Chat_Voice_Provider_Factory();
-                    $provider = $factory->create($voice_provider);
+                    $provider = Antek_Chat_Voice_Provider_Factory::create($voice_provider);
 
                     // Use provider's send_text_message method
                     $result = $provider->send_text_message($message, [
@@ -637,13 +636,13 @@ class Antek_Chat_REST_API_Controller {
     public function get_providers($request) {
         error_log('AAVAC Bot: get_providers() called');
 
-        // Get voice settings
+        // Get voice settings (modern schema v1.1.0+)
         $voice_settings = get_option('antek_chat_voice_settings', []);
 
         error_log('AAVAC Bot: Voice settings: ' . json_encode($voice_settings));
 
-        // Check if voice is enabled
-        $voice_enabled = !empty($voice_settings['enabled']);
+        // Check if voice is enabled (FIXED: voice_enabled not enabled)
+        $voice_enabled = !empty($voice_settings['voice_enabled']);
 
         if (!$voice_enabled) {
             error_log('AAVAC Bot: Voice not enabled');
@@ -653,27 +652,27 @@ class Antek_Chat_REST_API_Controller {
             ], 200);
         }
 
-        // Get configuration
-        $n8n_url = $voice_settings['n8n_voice_token_url'] ?? '';
+        // Get provider type and configuration (modern schema)
+        $voice_provider = $voice_settings['voice_provider'] ?? 'retell';
         $agent_id = $voice_settings['retell_agent_id'] ?? '';
 
         // Validate configuration
-        if (empty($n8n_url) || empty($agent_id)) {
-            error_log('AAVAC Bot: Voice configuration incomplete');
+        if (empty($agent_id)) {
+            error_log('AAVAC Bot: Voice configuration incomplete - missing agent_id');
             return new WP_REST_Response([
                 'success' => false,
                 'error' => 'Voice not configured properly. Check Voice Settings.',
             ], 200);
         }
 
-        error_log('AAVAC Bot: Returning Retell provider config');
+        error_log('AAVAC Bot: Returning provider config for: ' . $voice_provider);
 
         // Return valid provider configuration
         return new WP_REST_Response([
             'success' => true,
-            'provider' => 'retell',
+            'provider' => $voice_provider,
             'config' => [
-                'provider' => 'retell',
+                'provider' => $voice_provider,
                 'agentId' => $agent_id,
                 'sampleRate' => 24000,
                 'enabled' => true,
