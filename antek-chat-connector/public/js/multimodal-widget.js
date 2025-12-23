@@ -257,7 +257,7 @@
             }
 
             try {
-                if (this.voiceProvider.isActive) {
+                if (this.voiceProvider.isConnected) {
                     // End call
                     console.log('Antek Chat: Ending voice call');
                     await this.voiceProvider.endCall();
