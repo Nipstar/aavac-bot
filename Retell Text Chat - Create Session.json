@@ -1,0 +1,112 @@
+{
+  "name": "Retell Text Chat - Create Session",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-create-chat-session",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Create Chat Session",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        304
+      ],
+      "webhookId": "retell-create-chat-session"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.retellai.com/create-chat",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer key_46ccfa25e29bd52a348f36b0b679"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "http_create_chat",
+      "name": "Retell Create Chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  success: true,\n  chat_id: $json.chat_id,\n  agent_id: $json.agent_id,\n  chat_status: $json.chat_status\n}) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Return to WordPress",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        640,
+        304
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Create Chat Session": {
+      "main": [
+        [
+          {
+            "node": "Retell Create Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retell Create Chat": {
+      "main": [
+        [
+          {
+            "node": "Return to WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "38bf051b-6c9c-4202-b9f4-2c6fc7ce5e3b",
+  "meta": {
+    "instanceId": "28f97c9330a654dd83437fb7b4fcab67725ab005e2999c1ed6efcd7647ef4e99"
+  },
+  "id": "TqrNDFebsYmEC2H2",
+  "tags": []
+}

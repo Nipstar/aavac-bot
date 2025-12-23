@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.claude/
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+*.zip
+
+# Temporary files
+*.tmp
+*.log
+
+# Debug files
+debug-*.php
+debug-*.json
+extract-data-*.json
+
+# Node modules (if any)
+node_modules/
+
+# WordPress
+wp-config.php
+.htaccess

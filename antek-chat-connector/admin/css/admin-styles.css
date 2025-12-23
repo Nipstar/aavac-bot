@@ -1,0 +1,98 @@
+/**
+ * Admin Styles
+ *
+ * @package Antek_Chat_Connector
+ * @since 1.0.0
+ */
+
+/* Settings Page */
+.antek-chat-settings-content {
+    margin-top: 20px;
+}
+
+/* Info Box */
+.antek-chat-info-box {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f9f9f9;
+    border-left: 4px solid #FF6B4A;
+}
+
+.antek-chat-info-box h3 {
+    margin-top: 0;
+    color: #FF6B4A;
+}
+
+.antek-chat-info-box ol {
+    margin: 15px 0;
+    padding-left: 25px;
+}
+
+.antek-chat-info-box pre {
+    background: white;
+    padding: 10px;
+    border: 1px solid #ddd;
+    overflow-x: auto;
+    font-size: 12px;
+}
+
+/* Test Button */
+#test-webhook {
+    vertical-align: middle;
+}
+
+#test-result {
+    display: inline-block;
+    vertical-align: middle;
+    font-weight: 600;
+}
+
+#test-result.success {
+    color: #46b450;
+}
+
+#test-result.error {
+    color: #dc3232;
+}
+
+#test-result .spinner {
+    float: none;
+    vertical-align: middle;
+    margin: 0 5px;
+}
+
+/* Color Picker Improvements */
+.wp-picker-container {
+    vertical-align: middle;
+}
+
+/* Tab Content */
+.nav-tab-wrapper {
+    margin-bottom: 0;
+}
+
+/* Form Table Improvements */
+.form-table th {
+    padding: 20px 10px 20px 0;
+}
+
+.form-table td {
+    padding: 15px 10px;
+}
+
+.form-table td p.description {
+    margin-top: 8px;
+    margin-bottom: 0;
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+    .antek-chat-info-box {
+        padding: 15px;
+    }
+
+    .antek-chat-info-box pre {
+        font-size: 11px;
+        padding: 8px;
+    }
+}

@@ -1,0 +1,156 @@
+{
+  "name": "WordPress Retell AI - Create Call",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wordpress-retell-create-call",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "WordPress Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        304
+      ],
+      "webhookId": "wordpress-retell-create-call"
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhookData = $input.first().json;\nreturn [{\n  agent_id: webhookData.agent_id || 'agent_9480495f1c1603e9c408e69726',\n  metadata: {\n    user_name: webhookData.user_name || 'Anonymous',\n    user_email: webhookData.user_email || '',\n    page_url: webhookData.page_url || '',\n    source: 'wordpress_plugin',\n    timestamp: new Date().toISOString()\n  },\n  retell_llm_dynamic_variables: {\n    customer_name: webhookData.user_name || 'there'\n  }\n}];"
+      },
+      "id": "code_add_metadata",
+      "name": "Add Call Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.retellai.com/v2/create-web-call",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer key_46ccfa25e29bd52a348f36b0b679"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "http_retell_create",
+      "name": "Create Retell Web Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        640,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const retellResponse = $input.first().json;\nreturn [{\n  success: true,\n  access_token: retellResponse.access_token,\n  call_id: retellResponse.call_id,\n  agent_id: retellResponse.agent_id,\n  call_status: retellResponse.call_status\n}];"
+      },
+      "id": "code_prepare_response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond_webhook",
+      "name": "Return to WordPress",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1040,
+        304
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WordPress Webhook": {
+      "main": [
+        [
+          {
+            "node": "Add Call Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Call Metadata": {
+      "main": [
+        [
+          {
+            "node": "Create Retell Web Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Retell Web Call": {
+      "main": [
+        [
+          {
+            "node": "Prepare Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Response": {
+      "main": [
+        [
+          {
+            "node": "Return to WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "703a7fd8-5f18-437f-b526-882b0b973f7e",
+  "meta": {
+    "instanceId": "28f97c9330a654dd83437fb7b4fcab67725ab005e2999c1ed6efcd7647ef4e99"
+  },
+  "id": "XmBRps3vBOYa6Ki2",
+  "tags": []
+}

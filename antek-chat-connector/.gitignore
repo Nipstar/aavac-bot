@@ -1,0 +1,25 @@
+# WordPress
+.DS_Store
+*.log
+*.sql
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node (if using build tools in future)
+node_modules/
+package-lock.json
+
+# Composer (if using in future)
+vendor/
+composer.lock
+
+# Temporary files
+*.tmp
+*.bak
+*.cache

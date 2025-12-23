@@ -1,0 +1,136 @@
+{
+  "name": "Retell Text Chat - Send Message",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "retell-send-message",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Send Message",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        304
+      ],
+      "webhookId": "retell-send-message"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.retellai.com/create-chat-completion",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer key_46ccfa25e29bd52a348f36b0b679"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "http_send_message",
+      "name": "Retell Create Chat Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        448,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\n// Extract agent messages from the response\nconst agentMessages = response.messages.filter(msg => msg.role === 'agent');\nconst lastAgentMessage = agentMessages[agentMessages.length - 1];\n\nreturn [{\n  success: true,\n  response: lastAgentMessage?.content || 'No response',\n  message_id: lastAgentMessage?.message_id,\n  timestamp: lastAgentMessage?.created_timestamp,\n  all_messages: response.messages\n}];"
+      },
+      "id": "code_format",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Return to WordPress",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        848,
+        304
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Send Message": {
+      "main": [
+        [
+          {
+            "node": "Retell Create Chat Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retell Create Chat Completion": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Return to WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "9b72e73b-9caf-4154-891e-7ce8aeed768e",
+  "meta": {
+    "instanceId": "28f97c9330a654dd83437fb7b4fcab67725ab005e2999c1ed6efcd7647ef4e99"
+  },
+  "id": "wDRmWPk9lrhydGUu",
+  "tags": []
+}
