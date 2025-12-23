@@ -273,8 +273,8 @@ class Antek_Chat_Widget_Renderer {
         wp_add_inline_style('antek-chat-widget', $dynamic_css);
 
         // CRITICAL: Load Retell SDK in HEAD (not footer) to ensure it's available
-        $voice_settings = get_option('antek_chat_voice', array());
-        $voice_enabled = !empty($voice_settings['enabled']);
+        $voice_settings = get_option('antek_chat_voice_settings', array());
+        $voice_enabled = !empty($voice_settings['voice_enabled']);
 
         if ($voice_enabled) {
             error_log('Antek Chat: Voice enabled - loading Retell SDK and provider scripts');

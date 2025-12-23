@@ -255,7 +255,7 @@ class Antek_Chat_REST_API_Controller {
         error_log('AAVAC Bot: Voice token generation requested');
 
         // Get voice settings
-        $voice_settings = get_option('antek_chat_voice', []);
+        $voice_settings = get_option('antek_chat_voice_settings', []);
 
         // Check if voice is enabled
         if (empty($voice_settings['enabled'])) {
@@ -638,7 +638,7 @@ class Antek_Chat_REST_API_Controller {
         error_log('AAVAC Bot: get_providers() called');
 
         // Get voice settings
-        $voice_settings = get_option('antek_chat_voice', []);
+        $voice_settings = get_option('antek_chat_voice_settings', []);
 
         error_log('AAVAC Bot: Voice settings: ' . json_encode($voice_settings));
 
