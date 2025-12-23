@@ -38,17 +38,43 @@ class Antek_Chat_Webhook_Handler {
     }
 
     /**
-     * Send message to n8n webhook
+     * Send message (routes to appropriate handler based on chat mode)
      *
      * @param string $session_id Session ID
      * @param string $message User message
      * @param array $metadata Additional metadata
      * @return array|WP_Error Response data or error
      * @since 1.0.0
+     * @updated 1.2.1 Added support for multiple chat modes
      */
     public function send_message($session_id, $message, $metadata = array()) {
-        if (empty($this->webhook_url)) {
-            return new WP_Error('no_webhook', __('Webhook URL not configured', 'antek-chat-connector'));
+        $connection_settings = get_option('antek_chat_connection', array());
+        $chat_mode = isset($connection_settings['chat_mode']) ? $connection_settings['chat_mode'] : 'n8n';
+
+        if ($chat_mode === 'retell') {
+            return $this->handle_retell_text_message($session_id, $message, $metadata);
+        } else {
+            return $this->handle_n8n_message($session_id, $message, $metadata);
+        }
+    }
+
+    /**
+     * Handle n8n webhook message
+     *
+     * @param string $session_id Session ID
+     * @param string $message User message
+     * @param array $metadata Additional metadata
+     * @return array|WP_Error Response data or error
+     * @since 1.2.1
+     */
+    private function handle_n8n_message($session_id, $message, $metadata = array()) {
+        $connection_settings = get_option('antek_chat_connection', array());
+        $webhook_url = isset($connection_settings['n8n_webhook_url']) ? $connection_settings['n8n_webhook_url'] : '';
+
+        if (empty($webhook_url)) {
+            return array(
+                'response' => __('Chat not configured. Please set n8n webhook URL in settings.', 'antek-chat-connector')
+            );
         }
 
         $payload = array(
@@ -59,7 +85,7 @@ class Antek_Chat_Webhook_Handler {
             'metadata' => $metadata,
         );
 
-        $response = wp_remote_post($this->webhook_url, array(
+        $response = wp_remote_post($webhook_url, array(
             'headers' => array('Content-Type' => 'application/json'),
             'body' => wp_json_encode($payload),
             'timeout' => 30,
@@ -67,18 +93,15 @@ class Antek_Chat_Webhook_Handler {
         ));
 
         if (is_wp_error($response)) {
-            return $response;
+            return array(
+                'response' => __('Connection error. Please try again.', 'antek-chat-connector')
+            );
         }
 
         $response_code = wp_remote_retrieve_response_code($response);
         if ($response_code < 200 || $response_code >= 300) {
-            return new WP_Error(
-                'webhook_error',
-                sprintf(
-                    /* translators: %d: HTTP response code */
-                    __('Webhook returned error code: %d', 'antek-chat-connector'),
-                    $response_code
-                )
+            return array(
+                'response' => __('Service temporarily unavailable. Please try again.', 'antek-chat-connector')
             );
         }
 
@@ -86,11 +109,12 @@ class Antek_Chat_Webhook_Handler {
         $data = json_decode($body, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            return new WP_Error('invalid_response', __('Invalid JSON response from webhook', 'antek-chat-connector'));
+            return array(
+                'response' => __('Unable to process response. Please try again.', 'antek-chat-connector')
+            );
         }
 
         // Normalize n8n response format
-        // Handle array format: [{"output": "text"}] -> {"response": "text", "metadata": {}}
         if (is_array($data) && isset($data[0]) && is_array($data[0])) {
             if (isset($data[0]['output'])) {
                 $data = array(
@@ -102,10 +126,98 @@ class Antek_Chat_Webhook_Handler {
 
         // Ensure response field exists
         if (!isset($data['response'])) {
-            return new WP_Error('invalid_response', __('Webhook response missing "response" field', 'antek-chat-connector'));
+            return array(
+                'response' => __('No response received. Please try again.', 'antek-chat-connector')
+            );
         }
 
         return $data;
+    }
+
+    /**
+     * Handle Retell Text Chat message
+     *
+     * @param string $session_id Session ID
+     * @param string $message User message
+     * @param array $metadata Additional metadata
+     * @return array|WP_Error Response data or error
+     * @since 1.2.1
+     */
+    private function handle_retell_text_message($session_id, $message, $metadata = array()) {
+        $retell_settings = get_option('antek_chat_retell_text', array());
+
+        if (!isset($retell_settings['enabled']) || !$retell_settings['enabled']) {
+            return array(
+                'response' => __('Retell Text Chat not enabled. Please enable it in settings.', 'antek-chat-connector')
+            );
+        }
+
+        // Get or create chat session
+        $chat_id = get_transient('retell_chat_' . $session_id);
+
+        if (!$chat_id) {
+            // Create new Retell chat session
+            $create_url = isset($retell_settings['n8n_create_session_url']) ? $retell_settings['n8n_create_session_url'] : '';
+            if (empty($create_url)) {
+                return array(
+                    'response' => __('Retell session endpoint not configured.', 'antek-chat-connector')
+                );
+            }
+
+            $create_response = wp_remote_post($create_url, array(
+                'headers' => array('Content-Type' => 'application/json'),
+                'body' => wp_json_encode(array()),
+                'timeout' => 10,
+            ));
+
+            if (is_wp_error($create_response)) {
+                return array(
+                    'response' => __('Failed to create chat session. Please try again.', 'antek-chat-connector')
+                );
+            }
+
+            $create_data = json_decode(wp_remote_retrieve_body($create_response), true);
+            $chat_id = isset($create_data['chat_id']) ? $create_data['chat_id'] : '';
+
+            if (empty($chat_id)) {
+                return array(
+                    'response' => __('Invalid session response. Please try again.', 'antek-chat-connector')
+                );
+            }
+
+            // Cache chat_id for 24 hours
+            set_transient('retell_chat_' . $session_id, $chat_id, 24 * HOUR_IN_SECONDS);
+        }
+
+        // Send message
+        $send_url = isset($retell_settings['n8n_send_message_url']) ? $retell_settings['n8n_send_message_url'] : '';
+        if (empty($send_url)) {
+            return array(
+                'response' => __('Retell message endpoint not configured.', 'antek-chat-connector')
+            );
+        }
+
+        $send_response = wp_remote_post($send_url, array(
+            'headers' => array('Content-Type' => 'application/json'),
+            'body' => wp_json_encode(array(
+                'chat_id' => $chat_id,
+                'message' => $message,
+            )),
+            'timeout' => 15,
+        ));
+
+        if (is_wp_error($send_response)) {
+            return array(
+                'response' => __('Failed to send message. Please try again.', 'antek-chat-connector')
+            );
+        }
+
+        $data = json_decode(wp_remote_retrieve_body($send_response), true);
+
+        return array(
+            'response' => isset($data['response']) ? $data['response'] : __('No response received.', 'antek-chat-connector'),
+            'metadata' => isset($data['metadata']) ? $data['metadata'] : array()
+        );
     }
 
     /**

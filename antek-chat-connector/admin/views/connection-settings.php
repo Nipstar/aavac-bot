@@ -1,9 +1,9 @@
 <?php
 /**
- * Connection Settings View
+ * n8n Connection Settings View
  *
  * @package Antek_Chat_Connector
- * @since 1.0.0
+ * @since 1.2.1
  */
 
 // Prevent direct access
@@ -11,137 +11,172 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-$settings = get_option('antek_chat_settings', array());
+$settings = get_option('antek_chat_connection', array(
+    'chat_mode' => 'n8n',
+    'n8n_webhook_url' => '',
+    'widget_enabled' => true,
+));
 ?>
 
-<form method="post" action="options.php">
-    <?php
-    settings_fields('antek_chat_settings');
-    ?>
+<div class="antek-settings-section">
+    <div class="antek-info-box">
+        <h3>🔗 n8n Webhook Integration</h3>
+        <p>Connect to your n8n workflow for AI-powered text chat. This allows you to use any AI model (OpenAI, Claude, Gemini, etc.) through n8n.</p>
+    </div>
 
-    <table class="form-table" role="presentation">
-        <tbody>
+    <form method="post" action="options.php">
+        <?php settings_fields('antek_chat_connection'); ?>
+
+        <table class="form-table">
             <tr>
                 <th scope="row">
-                    <label for="use_voice_provider_for_chat"><?php esc_html_e('Text Chat Provider', 'antek-chat-connector'); ?></label>
+                    <label for="widget_enabled">Enable Chat Widget</label>
                 </th>
                 <td>
-                    <fieldset>
-                        <label>
-                            <input type="radio"
-                                   name="antek_chat_settings[chat_provider]"
-                                   id="use_voice_provider_for_chat"
-                                   value="voice_provider"
-                                   <?php checked(isset($settings['chat_provider']) && $settings['chat_provider'] !== 'n8n', true); ?>>
-                            <?php esc_html_e('Use Voice Provider (same as voice chat)', 'antek-chat-connector'); ?>
-                        </label>
-                        <p class="description" style="margin-left: 25px;">
-                            <?php esc_html_e('Text chat will use the provider configured in Voice Provider settings (Retell AI or ElevenLabs). Both voice and text use the same agent.', 'antek-chat-connector'); ?>
-                        </p>
-                        <br>
-                        <label>
-                            <input type="radio"
-                                   name="antek_chat_settings[chat_provider]"
-                                   id="use_n8n_for_chat"
-                                   value="n8n"
-                                   <?php checked(isset($settings['chat_provider']) ? $settings['chat_provider'] : 'n8n', 'n8n'); ?>>
-                            <?php esc_html_e('Use n8n/Make/Zapier Webhook (custom workflow)', 'antek-chat-connector'); ?>
-                        </label>
-                        <p class="description" style="margin-left: 25px;">
-                            <?php esc_html_e('Text chat will use your n8n webhook. Voice will still use the Voice Provider.', 'antek-chat-connector'); ?>
-                        </p>
-                    </fieldset>
+                    <input type="checkbox"
+                           name="antek_chat_connection[widget_enabled]"
+                           id="widget_enabled"
+                           value="1"
+                           <?php checked($settings['widget_enabled'], 1); ?>>
+                    <label for="widget_enabled">Show chat widget on frontend</label>
                 </td>
             </tr>
 
-            <tr class="chat-provider-field n8n-field">
+            <tr>
                 <th scope="row">
-                    <label for="n8n_webhook_url"><?php esc_html_e('n8n Webhook URL', 'antek-chat-connector'); ?></label>
+                    <label for="chat_mode">Text Chat Mode</label>
+                </th>
+                <td>
+                    <select name="antek_chat_connection[chat_mode]" id="chat_mode">
+                        <option value="n8n" <?php selected($settings['chat_mode'], 'n8n'); ?>>
+                            n8n Webhook (General AI)
+                        </option>
+                        <option value="retell" <?php selected($settings['chat_mode'], 'retell'); ?>>
+                            Retell Text Chat (Configure in Retell Text Chat tab)
+                        </option>
+                    </select>
+                    <p class="description">Choose how text messages are processed</p>
+                </td>
+            </tr>
+
+            <tr id="n8n-webhook-row" style="<?php echo $settings['chat_mode'] === 'retell' ? 'display:none;' : ''; ?>">
+                <th scope="row">
+                    <label for="n8n_webhook_url">n8n Webhook URL</label>
                 </th>
                 <td>
                     <input type="url"
-                           name="antek_chat_settings[n8n_webhook_url]"
+                           name="antek_chat_connection[n8n_webhook_url]"
                            id="n8n_webhook_url"
-                           value="<?php echo esc_attr(isset($settings['n8n_webhook_url']) ? $settings['n8n_webhook_url'] : ''); ?>"
-                           class="regular-text"
-                           placeholder="https://your-n8n-instance.com/webhook/...">
-                    <p class="description">
-                        <?php esc_html_e('Your n8n webhook URL that will handle chat messages', 'antek-chat-connector'); ?>
-                    </p>
+                           value="<?php echo esc_attr($settings['n8n_webhook_url']); ?>"
+                           class="large-text"
+                           placeholder="https://your-n8n.app/webhook/chat">
+                    <p class="description">Your n8n webhook URL that processes chat messages</p>
                 </td>
             </tr>
+        </table>
 
-            <tr class="chat-provider-field voice_provider-field" style="display: none;">
-                <th scope="row">
-                    <?php esc_html_e('Voice Provider Settings', 'antek-chat-connector'); ?>
-                </th>
-                <td>
-                    <p class="description">
-                        <?php esc_html_e('Text chat will use the provider configured in the Voice Provider tab. Configure your API credentials and agent IDs there.', 'antek-chat-connector'); ?>
-                    </p>
-                    <a href="?page=antek-chat-connector&tab=voice_provider" class="button button-secondary">
-                        <span class="dashicons dashicons-admin-settings" style="vertical-align: middle;"></span>
-                        <?php esc_html_e('Configure Voice Provider', 'antek-chat-connector'); ?>
-                    </a>
-                    <p class="description" style="margin-top: 10px;">
-                        <strong><?php esc_html_e('Tip:', 'antek-chat-connector'); ?></strong>
-                        <?php esc_html_e('You can use separate agents for voice and text chat by configuring both "Voice Agent ID" and "Text Chat Agent ID" in Voice Provider settings.', 'antek-chat-connector'); ?>
-                    </p>
-                </td>
-            </tr>
-
-            <tr>
-                <th scope="row">
-                    <?php esc_html_e('Widget Status', 'antek-chat-connector'); ?>
-                </th>
-                <td>
-                    <fieldset>
-                        <label>
-                            <input type="checkbox"
-                                   name="antek_chat_settings[widget_enabled]"
-                                   id="widget_enabled"
-                                   value="1"
-                                   <?php checked(isset($settings['widget_enabled']) ? $settings['widget_enabled'] : true, 1); ?>>
-                            <?php esc_html_e('Show chat widget on frontend', 'antek-chat-connector'); ?>
-                        </label>
-                    </fieldset>
-                </td>
-            </tr>
-
-            <tr>
-                <th scope="row">
-                    <?php esc_html_e('Test Connection', 'antek-chat-connector'); ?>
-                </th>
-                <td>
-                    <button type="button" id="test-webhook" class="button button-secondary">
-                        <?php esc_html_e('Test Webhook', 'antek-chat-connector'); ?>
-                    </button>
-                    <span id="test-result" style="margin-left: 10px;"></span>
-                    <p class="description">
-                        <?php esc_html_e('Test the connection to your n8n webhook', 'antek-chat-connector'); ?>
-                    </p>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-
-    <?php submit_button(); ?>
-</form>
-
-<div class="antek-chat-info-box" style="margin-top: 30px; padding: 20px; background: #f9f9f9; border-left: 4px solid #FF6B4A;">
-    <h3><?php esc_html_e('Usage Instructions', 'antek-chat-connector'); ?></h3>
-    <p><?php esc_html_e('To use this plugin:', 'antek-chat-connector'); ?></p>
-    <ol>
-        <li><?php esc_html_e('Create a webhook in your n8n workflow', 'antek-chat-connector'); ?></li>
-        <li><?php esc_html_e('Paste the webhook URL above', 'antek-chat-connector'); ?></li>
-        <li><?php esc_html_e('Configure your workflow to return a JSON response with a "response" field', 'antek-chat-connector'); ?></li>
-        <li><?php esc_html_e('Customize the appearance in the Appearance tab', 'antek-chat-connector'); ?></li>
-        <li><?php esc_html_e('The widget will appear automatically on your site', 'antek-chat-connector'); ?></li>
-    </ol>
-    <p><strong><?php esc_html_e('Expected Response Format:', 'antek-chat-connector'); ?></strong></p>
-    <pre style="background: white; padding: 10px; border: 1px solid #ddd; overflow-x: auto;">
+        <div class="antek-setup-instructions">
+            <h3>📝 n8n Workflow Setup</h3>
+            <ol>
+                <li><strong>Create n8n Workflow:</strong>
+                    <ul>
+                        <li>Add "Webhook" trigger node (POST method)</li>
+                        <li>Add your AI node (OpenAI, Claude, etc.)</li>
+                        <li>Add "Respond to Webhook" node</li>
+                    </ul>
+                </li>
+                <li><strong>Webhook Configuration:</strong>
+                    <pre>Expected Input:
 {
-  "response": "Your AI response text here",
-  "metadata": {}
+  "message": "user message here",
+  "session_id": "unique-session-id",
+  "metadata": {...}
+}
+
+Required Response:
+{
+  "response": "AI response here"
 }</pre>
+                </li>
+                <li><strong>Test Connection:</strong>
+                    <button type="button" class="button" id="test-n8n-webhook">Test Webhook</button>
+                    <span id="test-result"></span>
+                </li>
+            </ol>
+        </div>
+
+        <?php submit_button(); ?>
+    </form>
 </div>
+
+<script>
+jQuery(document).ready(function($) {
+    // Show/hide n8n fields based on mode
+    $('#chat_mode').on('change', function() {
+        if ($(this).val() === 'n8n') {
+            $('#n8n-webhook-row').show();
+        } else {
+            $('#n8n-webhook-row').hide();
+        }
+    });
+
+    // Test webhook
+    $('#test-n8n-webhook').on('click', function() {
+        const url = $('#n8n_webhook_url').val();
+        if (!url) {
+            $('#test-result').html('<span style="color:red;">⚠️ Please enter webhook URL</span>');
+            return;
+        }
+
+        $(this).prop('disabled', true).text('Testing...');
+        $('#test-result').html('<span style="color:blue;">⏳ Testing connection...</span>');
+
+        $.ajax({
+            url: url,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                message: 'Test message from AAVAC Bot',
+                session_id: 'test-session',
+                metadata: { test: true }
+            }),
+            timeout: 10000,
+            success: function(response) {
+                if (response && response.response) {
+                    $('#test-result').html('<span style="color:green;">✅ Success! Response: ' + response.response + '</span>');
+                } else {
+                    $('#test-result').html('<span style="color:orange;">⚠️ Webhook responded but format unexpected</span>');
+                }
+            },
+            error: function(xhr, status, error) {
+                $('#test-result').html('<span style="color:red;">❌ Failed: ' + error + '</span>');
+            },
+            complete: function() {
+                $('#test-n8n-webhook').prop('disabled', false).text('Test Webhook');
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.antek-settings-section { max-width: 900px; }
+.antek-info-box {
+    background: #e7f3ff;
+    border-left: 4px solid #2271b1;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+.antek-setup-instructions {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 20px;
+    margin-top: 20px;
+}
+.antek-setup-instructions pre {
+    background: #fff;
+    padding: 10px;
+    border: 1px solid #ddd;
+    overflow-x: auto;
+}
+</style>

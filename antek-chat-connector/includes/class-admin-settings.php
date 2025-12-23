@@ -93,13 +93,23 @@ class Antek_Chat_Admin_Settings {
      *
      * @since 1.0.0
      * @updated 1.1.0 Added voice provider, webhook, and advanced settings
+     * @updated 1.2.1 Restructured for n8n Connection, Retell Text Chat, and Voice Settings
      */
     public function register_settings() {
-        // Original v1.0.0 settings
-        register_setting('antek_chat_settings', 'antek_chat_settings', array(
-            'sanitize_callback' => array($this, 'sanitize_settings'),
+        // New v1.2.1 settings structure
+        register_setting('antek_chat_connection', 'antek_chat_connection', array(
+            'sanitize_callback' => array($this, 'sanitize_connection_settings'),
         ));
 
+        register_setting('antek_chat_retell_text', 'antek_chat_retell_text', array(
+            'sanitize_callback' => array($this, 'sanitize_retell_text_settings'),
+        ));
+
+        register_setting('antek_chat_voice', 'antek_chat_voice', array(
+            'sanitize_callback' => array($this, 'sanitize_voice'),
+        ));
+
+        // Existing settings
         register_setting('antek_chat_appearance', 'antek_chat_appearance', array(
             'sanitize_callback' => array($this, 'sanitize_appearance'),
         ));
@@ -108,7 +118,11 @@ class Antek_Chat_Admin_Settings {
             'sanitize_callback' => array($this, 'sanitize_popup'),
         ));
 
-        // New v1.1.0 settings
+        // Legacy v1.0.0 settings (keep for backward compatibility)
+        register_setting('antek_chat_settings', 'antek_chat_settings', array(
+            'sanitize_callback' => array($this, 'sanitize_settings'),
+        ));
+
         register_setting('antek_chat_voice_settings', 'antek_chat_voice_settings', array(
             'sanitize_callback' => array($this, 'sanitize_voice_settings'),
         ));
@@ -305,6 +319,7 @@ class Antek_Chat_Admin_Settings {
      *
      * @since 1.0.0
      * @updated 1.1.0 Added new tabs for voice provider, webhook, and advanced settings
+     * @updated 1.2.1 Restructured tabs for clearer separation of n8n, Retell Text, and Voice
      */
     public function render_settings_page() {
         if (!current_user_can('manage_options')) {
@@ -322,16 +337,13 @@ class Antek_Chat_Admin_Settings {
 
             <h2 class="nav-tab-wrapper">
                 <a href="?page=antek-chat-connector&amp;tab=connection" class="nav-tab <?php echo $active_tab === 'connection' ? 'nav-tab-active' : ''; ?>">
-                    <?php esc_html_e('Connection', 'antek-chat-connector'); ?>
+                    <?php esc_html_e('n8n Connection', 'antek-chat-connector'); ?>
                 </a>
-                <a href="?page=antek-chat-connector&amp;tab=voice_provider" class="nav-tab <?php echo $active_tab === 'voice_provider' ? 'nav-tab-active' : ''; ?>">
-                    <?php esc_html_e('Voice Provider', 'antek-chat-connector'); ?>
+                <a href="?page=antek-chat-connector&amp;tab=retell_text" class="nav-tab <?php echo $active_tab === 'retell_text' ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e('Retell Text Chat', 'antek-chat-connector'); ?>
                 </a>
-                <a href="?page=antek-chat-connector&amp;tab=webhook" class="nav-tab <?php echo $active_tab === 'webhook' ? 'nav-tab-active' : ''; ?>">
-                    <?php esc_html_e('Webhooks', 'antek-chat-connector'); ?>
-                </a>
-                <a href="?page=antek-chat-connector&amp;tab=advanced" class="nav-tab <?php echo $active_tab === 'advanced' ? 'nav-tab-active' : ''; ?>">
-                    <?php esc_html_e('Advanced', 'antek-chat-connector'); ?>
+                <a href="?page=antek-chat-connector&amp;tab=voice" class="nav-tab <?php echo $active_tab === 'voice' ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e('Voice Settings', 'antek-chat-connector'); ?>
                 </a>
                 <a href="?page=antek-chat-connector&amp;tab=appearance" class="nav-tab <?php echo $active_tab === 'appearance' ? 'nav-tab-active' : ''; ?>">
                     <?php esc_html_e('Appearance', 'antek-chat-connector'); ?>
@@ -347,20 +359,27 @@ class Antek_Chat_Admin_Settings {
                     case 'connection':
                         include ANTEK_CHAT_PLUGIN_DIR . 'admin/views/connection-settings.php';
                         break;
-                    case 'voice_provider':
-                        include ANTEK_CHAT_PLUGIN_DIR . 'admin/views/voice-provider-settings.php';
+                    case 'retell_text':
+                        include ANTEK_CHAT_PLUGIN_DIR . 'admin/views/retell-text-settings.php';
                         break;
-                    case 'webhook':
-                        include ANTEK_CHAT_PLUGIN_DIR . 'admin/views/webhook-settings.php';
-                        break;
-                    case 'advanced':
-                        include ANTEK_CHAT_PLUGIN_DIR . 'admin/views/advanced-settings.php';
+                    case 'voice':
+                        include ANTEK_CHAT_PLUGIN_DIR . 'admin/views/voice-settings.php';
                         break;
                     case 'appearance':
                         include ANTEK_CHAT_PLUGIN_DIR . 'admin/views/appearance-settings.php';
                         break;
                     case 'popup':
                         include ANTEK_CHAT_PLUGIN_DIR . 'admin/views/popup-settings.php';
+                        break;
+                    // Legacy tabs - redirect to new structure
+                    case 'voice_provider':
+                        include ANTEK_CHAT_PLUGIN_DIR . 'admin/views/voice-settings.php';
+                        break;
+                    case 'webhook':
+                        include ANTEK_CHAT_PLUGIN_DIR . 'admin/views/webhook-settings.php';
+                        break;
+                    case 'advanced':
+                        include ANTEK_CHAT_PLUGIN_DIR . 'admin/views/advanced-settings.php';
                         break;
                 }
                 ?>
@@ -800,5 +819,83 @@ class Antek_Chat_Admin_Settings {
                 'message' => $e->getMessage(),
             ));
         }
+    }
+
+    /**
+     * Sanitize n8n connection settings
+     *
+     * @param array $input Input data
+     * @return array Sanitized data
+     * @since 1.2.1
+     */
+    public function sanitize_connection_settings($input) {
+        $sanitized = array();
+
+        $sanitized['widget_enabled'] = isset($input['widget_enabled']) ? (bool) $input['widget_enabled'] : false;
+
+        if (isset($input['chat_mode'])) {
+            $allowed_modes = array('n8n', 'retell');
+            $sanitized['chat_mode'] = in_array($input['chat_mode'], $allowed_modes)
+                ? $input['chat_mode']
+                : 'n8n';
+        } else {
+            $sanitized['chat_mode'] = 'n8n';
+        }
+
+        if (isset($input['n8n_webhook_url'])) {
+            $sanitized['n8n_webhook_url'] = esc_url_raw($input['n8n_webhook_url']);
+        }
+
+        return $sanitized;
+    }
+
+    /**
+     * Sanitize Retell Text Chat settings
+     *
+     * @param array $input Input data
+     * @return array Sanitized data
+     * @since 1.2.1
+     */
+    public function sanitize_retell_text_settings($input) {
+        $sanitized = array();
+
+        $sanitized['enabled'] = isset($input['enabled']) ? (bool) $input['enabled'] : false;
+
+        if (isset($input['retell_agent_id'])) {
+            $sanitized['retell_agent_id'] = sanitize_text_field($input['retell_agent_id']);
+        }
+
+        if (isset($input['n8n_create_session_url'])) {
+            $sanitized['n8n_create_session_url'] = esc_url_raw($input['n8n_create_session_url']);
+        }
+
+        if (isset($input['n8n_send_message_url'])) {
+            $sanitized['n8n_send_message_url'] = esc_url_raw($input['n8n_send_message_url']);
+        }
+
+        return $sanitized;
+    }
+
+    /**
+     * Sanitize voice settings
+     *
+     * @param array $input Input data
+     * @return array Sanitized data
+     * @since 1.2.1
+     */
+    public function sanitize_voice($input) {
+        $sanitized = array();
+
+        $sanitized['enabled'] = isset($input['enabled']) ? (bool) $input['enabled'] : false;
+
+        if (isset($input['retell_agent_id'])) {
+            $sanitized['retell_agent_id'] = sanitize_text_field($input['retell_agent_id']);
+        }
+
+        if (isset($input['n8n_voice_token_url'])) {
+            $sanitized['n8n_voice_token_url'] = esc_url_raw($input['n8n_voice_token_url']);
+        }
+
+        return $sanitized;
     }
 }
