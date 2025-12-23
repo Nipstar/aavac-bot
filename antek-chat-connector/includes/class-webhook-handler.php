@@ -152,6 +152,16 @@ class Antek_Chat_Webhook_Handler {
             );
         }
 
+        // Get agent ID from settings
+        $agent_id = isset($retell_settings['retell_agent_id']) ? $retell_settings['retell_agent_id'] : '';
+
+        if (empty($agent_id)) {
+            error_log('AAVAC Bot: Retell agent ID not configured');
+            return array(
+                'response' => __('Retell agent not configured. Please check settings.', 'antek-chat-connector')
+            );
+        }
+
         // Get or create chat session
         $chat_id = get_transient('retell_chat_' . $session_id);
 
@@ -159,27 +169,59 @@ class Antek_Chat_Webhook_Handler {
             // Create new Retell chat session
             $create_url = isset($retell_settings['n8n_create_session_url']) ? $retell_settings['n8n_create_session_url'] : '';
             if (empty($create_url)) {
+                error_log('AAVAC Bot: Retell session endpoint not configured');
                 return array(
                     'response' => __('Retell session endpoint not configured.', 'antek-chat-connector')
                 );
             }
 
+            // CRITICAL FIX: Properly send agent_id in request body
+            $create_request_body = array(
+                'agent_id' => $agent_id,
+                'user_id' => get_current_user_id(),
+                'session_id' => $session_id,
+            );
+
+            error_log('AAVAC Bot: Creating Retell session with data: ' . wp_json_encode($create_request_body));
+
             $create_response = wp_remote_post($create_url, array(
                 'headers' => array('Content-Type' => 'application/json'),
-                'body' => wp_json_encode(array()),
+                'body' => wp_json_encode($create_request_body),
                 'timeout' => 10,
             ));
 
             if (is_wp_error($create_response)) {
+                error_log('AAVAC Bot: n8n session request failed - ' . $create_response->get_error_message());
                 return array(
                     'response' => __('Failed to create chat session. Please try again.', 'antek-chat-connector')
                 );
             }
 
-            $create_data = json_decode(wp_remote_retrieve_body($create_response), true);
+            $http_code = wp_remote_retrieve_response_code($create_response);
+            $body = wp_remote_retrieve_body($create_response);
+
+            error_log('AAVAC Bot: n8n session response (' . $http_code . '): ' . $body);
+
+            if ($http_code !== 200) {
+                error_log('AAVAC Bot: n8n returned error code: ' . $http_code);
+                return array(
+                    'response' => __('Chat service returned an error.', 'antek-chat-connector')
+                );
+            }
+
+            $create_data = json_decode($body, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                error_log('AAVAC Bot: Failed to parse n8n response: ' . json_last_error_msg());
+                return array(
+                    'response' => __('Invalid response from chat service.', 'antek-chat-connector')
+                );
+            }
+
             $chat_id = isset($create_data['chat_id']) ? $create_data['chat_id'] : '';
 
             if (empty($chat_id)) {
+                error_log('AAVAC Bot: No chat_id in response: ' . $body);
                 return array(
                     'response' => __('Invalid session response. Please try again.', 'antek-chat-connector')
                 );
@@ -187,32 +229,59 @@ class Antek_Chat_Webhook_Handler {
 
             // Cache chat_id for 24 hours
             set_transient('retell_chat_' . $session_id, $chat_id, 24 * HOUR_IN_SECONDS);
+
+            error_log('AAVAC Bot: Chat session created - ID: ' . $chat_id);
         }
 
-        // Send message
+        // Send message to existing chat session
         $send_url = isset($retell_settings['n8n_send_message_url']) ? $retell_settings['n8n_send_message_url'] : '';
         if (empty($send_url)) {
+            error_log('AAVAC Bot: Retell message endpoint not configured');
             return array(
                 'response' => __('Retell message endpoint not configured.', 'antek-chat-connector')
             );
         }
 
+        $send_request_body = array(
+            'chat_id' => $chat_id,
+            'message' => $message,
+        );
+
+        error_log('AAVAC Bot: Sending message with data: ' . wp_json_encode($send_request_body));
+
         $send_response = wp_remote_post($send_url, array(
             'headers' => array('Content-Type' => 'application/json'),
-            'body' => wp_json_encode(array(
-                'chat_id' => $chat_id,
-                'message' => $message,
-            )),
+            'body' => wp_json_encode($send_request_body),
             'timeout' => 15,
         ));
 
         if (is_wp_error($send_response)) {
+            error_log('AAVAC Bot: Message send failed - ' . $send_response->get_error_message());
             return array(
                 'response' => __('Failed to send message. Please try again.', 'antek-chat-connector')
             );
         }
 
-        $data = json_decode(wp_remote_retrieve_body($send_response), true);
+        $http_code = wp_remote_retrieve_response_code($send_response);
+        $body = wp_remote_retrieve_body($send_response);
+
+        error_log('AAVAC Bot: Message response (' . $http_code . '): ' . $body);
+
+        if ($http_code !== 200) {
+            error_log('AAVAC Bot: n8n returned error code: ' . $http_code);
+            return array(
+                'response' => __('Chat service returned an error.', 'antek-chat-connector')
+            );
+        }
+
+        $data = json_decode($body, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log('AAVAC Bot: Failed to parse response: ' . json_last_error_msg());
+            return array(
+                'response' => __('Invalid response from chat service.', 'antek-chat-connector')
+            );
+        }
 
         return array(
             'response' => isset($data['response']) ? $data['response'] : __('No response received.', 'antek-chat-connector'),

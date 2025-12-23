@@ -3,7 +3,7 @@
  * Plugin Name: AAVAC Bot
  * Plugin URI: https://www.antekautomation.com
  * Description: Advanced AI Voice & Chat connector powered by Retell AI, with secure encryption, media uploads, and enterprise-grade webhook authentication
- * Version: 1.2.2
+ * Version: 1.2.3
  * Author: Antek Automation
  * Author URI: https://www.antekautomation.com
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('ANTEK_CHAT_VERSION', '1.2.2');
+define('ANTEK_CHAT_VERSION', '1.2.3');
 define('ANTEK_CHAT_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ANTEK_CHAT_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('ANTEK_CHAT_PLUGIN_BASENAME', plugin_basename(__FILE__));
