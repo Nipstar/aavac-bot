@@ -13,8 +13,21 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// Get current settings
+// Get current settings - with backward compatibility for old antek_chat_voice option
 $settings = get_option('antek_chat_voice_settings', []);
+$old_settings = get_option('antek_chat_voice', []);
+
+// If new settings are empty, migrate from old settings
+if (empty($settings) && !empty($old_settings)) {
+    $settings = [
+        'voice_enabled' => isset($old_settings['enabled']) ? (bool) $old_settings['enabled'] : false,
+        'voice_provider' => 'n8n-retell', // Default to n8n-retell if using old format with n8n webhook
+        'retell_agent_id' => isset($old_settings['retell_agent_id']) ? $old_settings['retell_agent_id'] : '',
+        'n8n_base_url' => isset($old_settings['n8n_voice_token_url']) ? $old_settings['n8n_voice_token_url'] : '',
+        'n8n_retell_agent_id' => isset($old_settings['retell_agent_id']) ? $old_settings['retell_agent_id'] : '',
+    ];
+}
+
 $voice_enabled = isset($settings['voice_enabled']) ? (bool) $settings['voice_enabled'] : false;
 $voice_provider = isset($settings['voice_provider']) ? $settings['voice_provider'] : 'retell';
 $use_retell_chat = isset($settings['use_retell_chat']) ? (bool) $settings['use_retell_chat'] : true; // Default to TRUE

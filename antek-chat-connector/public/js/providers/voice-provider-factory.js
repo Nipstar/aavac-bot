@@ -340,7 +340,10 @@
             }
 
             try {
-                const response = await fetch(`${restUrl}/antek-chat/v1/token/${this.getProviderName()}`, {
+                // Build URL without double slashes (restUrl already has trailing slash)
+                // Use generic /token endpoint - provider is determined by server-side config
+                const tokenUrl = restUrl.replace(/\/$/, '') + '/antek-chat/v1/token/voice';
+                const response = await fetch(tokenUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -350,14 +353,25 @@
                 });
 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Token generation failed');
+                    console.error('[Antek Chat] Token endpoint returned error status:', response.status);
+                    try {
+                        const error = await response.json();
+                        console.error('[Antek Chat] Error response:', error);
+                        throw new Error(error.message || error.error || 'Token generation failed');
+                    } catch (parseError) {
+                        const errorText = await response.text();
+                        console.error('[Antek Chat] Error response (raw text):', errorText);
+                        throw new Error(`Token generation failed (${response.status}): ${errorText}`);
+                    }
                 }
 
-                return await response.json();
+                const result = await response.json();
+                console.log('[Antek Chat] Token generation successful:', result);
+                return result;
 
             } catch (error) {
                 console.error('[Antek Chat] Token generation failed:', error);
+                console.error('[Antek Chat] Error details:', error.message);
                 throw error;
             }
         }

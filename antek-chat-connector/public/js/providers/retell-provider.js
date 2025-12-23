@@ -50,7 +50,7 @@
                 console.log('[RetellProvider] Checking SDK availability...');
                 console.log('[RetellProvider] window.RetellWebClient:', typeof window.RetellWebClient);
 
-                // Check if Retell SDK is loaded (ESM export to window.RetellWebClient)
+                // Check if Retell SDK is loaded (bundled as window.RetellWebClient)
                 if (typeof window.RetellWebClient === 'undefined') {
                     const error = new Error('Retell SDK not loaded - window.RetellWebClient is undefined');
                     console.error('[RetellProvider] SDK CHECK FAILED:', error);
@@ -71,7 +71,7 @@
                 this.log('Token generated', 'info', { callId: this.callId });
                 console.log('[RetellProvider] Token generated:', tokenData);
 
-                // Initialize Retell client (from global window.RetellWebClient)
+                // Initialize Retell client (from bundled window.RetellWebClient)
                 console.log('[RetellProvider] Initializing RetellWebClient...');
                 this.retellClient = new window.RetellWebClient();
                 console.log('[RetellProvider] RetellWebClient initialized:', this.retellClient);
@@ -81,11 +81,16 @@
 
                 // Start call with token
                 console.log('[RetellProvider] Starting call with token...');
-                await this.retellClient.startCall({
+                const conversationConfig = {
                     accessToken: tokenData.access_token,
-                    sampleRate: this.sampleRate,
-                    emitRawAudioSamples: false
-                });
+                    sampleRate: this.sampleRate || 24000,
+                    enableAudio: true
+                };
+                console.log('[RetellProvider] Conversation config:', conversationConfig);
+                console.log('[RetellProvider] Access token:', tokenData.access_token ? 'present' : 'MISSING');
+                console.log('[RetellProvider] Sample rate:', this.sampleRate);
+
+                await this.retellClient.startConversation(conversationConfig);
 
                 this.isConnected = true;
                 this.emit('connected', { callId: this.callId });
@@ -100,10 +105,28 @@
                     stack: error.stack,
                     name: error.name
                 });
-                this.log('Failed to start call', 'error', error);
+
+                // Provide specific error messages for common issues
+                let userMessage = 'Voice call failed: ' + error.message;
+
+                if (error.name === 'NotAllowedError' || error.message.includes('Permission denied')) {
+                    userMessage = '🎤 Microphone permission denied. Please allow microphone access in your browser settings and try again.';
+                    console.error('[RetellProvider] MICROPHONE PERMISSION DENIED');
+                } else if (error.name === 'NotFoundError' || error.message.includes('device not found')) {
+                    userMessage = '🎤 No microphone found. Please check your audio device is connected.';
+                    console.error('[RetellProvider] NO MICROPHONE DEVICE FOUND');
+                } else if (error.name === 'NotReadableError' || error.message.includes('already in use')) {
+                    userMessage = '🎤 Microphone is already in use by another application. Close other apps and try again.';
+                    console.error('[RetellProvider] MICROPHONE IN USE');
+                } else if (error.message.includes('startConversation')) {
+                    userMessage = '❌ Retell SDK error. Please refresh the page and try again.';
+                    console.error('[RetellProvider] RETELL SDK ERROR');
+                }
+
+                this.log(userMessage, 'error', error);
                 this.emit('error', {
                     code: 'call_start_failed',
-                    message: error.message
+                    message: userMessage
                 });
                 throw error;
             }
@@ -123,7 +146,7 @@
                 this.log('Ending call...', 'info');
 
                 if (this.retellClient) {
-                    this.retellClient.stopCall();
+                    this.retellClient.stopConversation();
                 }
 
                 this.isConnected = false;
@@ -245,6 +268,8 @@
     // Register provider with factory
     if (window.VoiceProviderFactory) {
         window.VoiceProviderFactory.register('retell', RetellProvider);
+        // n8n-retell uses the same Retell SDK, just proxies token generation through n8n
+        window.VoiceProviderFactory.register('n8n-retell', RetellProvider);
     }
 
     // Export to global scope

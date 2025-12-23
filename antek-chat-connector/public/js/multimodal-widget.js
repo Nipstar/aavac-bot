@@ -95,6 +95,16 @@
 
             console.log('Antek Chat: Voice provider:', this.config.voiceProvider);
 
+            // Disable voice button while initializing
+            const voiceButton = document.querySelector('.antek-chat-voice-call-button');
+            if (voiceButton) {
+                voiceButton.disabled = true;
+                voiceButton.style.opacity = '0.5';
+                voiceButton.style.cursor = 'not-allowed';
+                voiceButton.title = 'Loading voice provider...';
+                console.log('Antek Chat: Voice button disabled during initialization');
+            }
+
             try {
                 // Get enabled provider from server
                 console.log('Antek Chat: Getting enabled provider from server...');
@@ -109,9 +119,27 @@
                 // Setup voice event handlers
                 this.setupVoiceEventHandlers();
 
+                // Enable voice button once provider is ready
+                if (voiceButton) {
+                    voiceButton.disabled = false;
+                    voiceButton.style.opacity = '1';
+                    voiceButton.style.cursor = 'pointer';
+                    voiceButton.title = 'Click to start voice call';
+                    console.log('Antek Chat: Voice button enabled - provider ready');
+                }
+
             } catch (error) {
                 console.error('Antek Chat: Failed to initialize voice provider:', error);
                 this.showError('Voice features unavailable: ' + error.message);
+
+                // Keep button disabled on error
+                if (voiceButton) {
+                    voiceButton.disabled = true;
+                    voiceButton.style.opacity = '0.3';
+                    voiceButton.style.cursor = 'not-allowed';
+                    voiceButton.title = 'Voice provider failed to load';
+                    console.log('Antek Chat: Voice button kept disabled due to error');
+                }
             }
         }
 

@@ -57,22 +57,36 @@ class Antek_Chat_Widget_Renderer {
         }
 
         // Determine if multimodal features are enabled
-        // Validate voice configuration before enabling
+        // Check both new (antek_chat_voice_settings) and old (antek_chat_voice) settings formats
         $voice_enabled = false;
+        $old_voice_settings = get_option('antek_chat_voice', array());
+
+        // Check if voice is enabled in either old or new format
+        $voice_enabled_flag = false;
         if (isset($voice_settings['voice_enabled']) && $voice_settings['voice_enabled']) {
-            $provider = isset($voice_settings['voice_provider']) ? $voice_settings['voice_provider'] : 'retell';
+            $voice_enabled_flag = true;
+        } elseif (isset($old_voice_settings['enabled']) && $old_voice_settings['enabled']) {
+            $voice_enabled_flag = true;
+        }
 
-            // Check if provider is properly configured
-            if ($provider === 'retell') {
-                $has_api_key = !empty($voice_settings['retell_api_key']);
-                $has_agent_id = !empty($voice_settings['retell_agent_id']);
+        if ($voice_enabled_flag) {
+            // Check for n8n webhook configuration (original working setup)
+            $n8n_webhook = isset($old_voice_settings['n8n_voice_token_url']) ?
+                           $old_voice_settings['n8n_voice_token_url'] :
+                           (isset($voice_settings['n8n_base_url']) ? $voice_settings['n8n_base_url'] : '');
 
-                if ($has_api_key && $has_agent_id) {
-                    $voice_enabled = true;
-                } else {
-                    error_log('Antek Chat: Voice disabled - Retell missing ' .
-                        (!$has_api_key ? 'API key' : 'Agent ID'));
-                }
+            $agent_id = isset($old_voice_settings['retell_agent_id']) ?
+                       $old_voice_settings['retell_agent_id'] :
+                       (isset($voice_settings['retell_agent_id']) ? $voice_settings['retell_agent_id'] : '');
+
+            if (!empty($n8n_webhook) && !empty($agent_id)) {
+                // n8n webhook mode is configured
+                $voice_enabled = true;
+            } elseif (!empty($agent_id) && !empty($voice_settings['retell_api_key'])) {
+                // Direct Retell mode is configured
+                $voice_enabled = true;
+            } else {
+                error_log('Antek Chat: Voice disabled - missing configuration (webhook or API key + agent ID)');
             }
         }
 
@@ -273,20 +287,37 @@ class Antek_Chat_Widget_Renderer {
         wp_add_inline_style('antek-chat-widget', $dynamic_css);
 
         // CRITICAL: Load Retell SDK in HEAD (not footer) to ensure it's available
-        $voice_settings = get_option('antek_chat_voice_settings', array());
-        $voice_enabled = !empty($voice_settings['voice_enabled']);
-
+        // Use the $voice_enabled parameter passed from render() which includes full validation
         if ($voice_enabled) {
             error_log('Antek Chat: Voice enabled - loading Retell SDK and provider scripts');
 
-            // Load Retell SDK from CDN (in HEAD for availability)
-            // Required for BOTH direct Retell and n8n-proxied Retell
-            // n8n returns genuine Retell access tokens that require the SDK
+            // Load Retell SDK bundled with plugin (eliminates CDN/dependency issues)
+            // Both eventemitter3 and retell-sdk are packaged locally
+            // Load eventemitter3 first (required dependency)
+            wp_enqueue_script(
+                'eventemitter3',
+                ANTEK_CHAT_PLUGIN_URL . 'public/js/lib/eventemitter3.js',
+                array(),
+                ANTEK_CHAT_VERSION,
+                false // Load in HEAD
+            );
+
+            // Load dependencies shim - aliases globals for SDK compatibility
+            // This must load AFTER eventemitter3 but BEFORE retell-web-sdk
+            wp_enqueue_script(
+                'sdk-dependencies-shim',
+                ANTEK_CHAT_PLUGIN_URL . 'public/js/lib/sdk-dependencies-shim.js',
+                array('eventemitter3'),
+                ANTEK_CHAT_VERSION,
+                false // Load in HEAD
+            );
+
+            // Load Retell SDK v1.3.3 (bundled with plugin)
             wp_enqueue_script(
                 'retell-web-sdk',
-                'https://cdn.jsdelivr.net/npm/retell-client-js-sdk@2.3.0/dist/retell-client-js-sdk.min.js',
-                array(),
-                '2.3.0',
+                ANTEK_CHAT_PLUGIN_URL . 'public/js/lib/retell-sdk.js',
+                array('sdk-dependencies-shim'),
+                ANTEK_CHAT_VERSION,
                 false // Load in HEAD, not footer
             );
 

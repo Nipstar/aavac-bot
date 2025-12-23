@@ -3,7 +3,7 @@
  * Plugin Name: AAVAC Bot
  * Plugin URI: https://www.antekautomation.com
  * Description: Advanced AI Voice & Chat connector powered by Retell AI, with secure encryption, media uploads, and enterprise-grade webhook authentication
- * Version: 1.2.7
+ * Version: 1.2.36
  * Author: Antek Automation
  * Author URI: https://www.antekautomation.com
  * License: GPL v2 or later
@@ -20,8 +20,10 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+error_log('AAVAC Bot: Plugin file loaded at ' . current_time('mysql'));
+
 // Define plugin constants
-define('ANTEK_CHAT_VERSION', '1.2.7');
+define('ANTEK_CHAT_VERSION', '1.2.36');
 define('ANTEK_CHAT_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ANTEK_CHAT_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('ANTEK_CHAT_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -142,7 +144,7 @@ function antek_chat_activate() {
             'retell_api_key' => '',
             'retell_agent_id' => '',
             'retell_chat_agent_id' => '', // Optional separate agent for text chat
-            'use_retell_chat' => true, // Use Retell for text chat by default
+            'use_retell_chat' => false, // Disabled by default - users should use webhook mode unless explicitly configured
             // n8n-Retell provider settings (v1.2.0+)
             'n8n_base_url' => '',
             'n8n_voice_endpoint' => '/webhook/wordpress-retell-create-call',
