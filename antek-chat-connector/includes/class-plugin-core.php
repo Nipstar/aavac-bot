@@ -97,12 +97,12 @@ class Antek_Chat_Plugin_Core {
             return;
         }
 
-        // Get chat provider setting
-        $settings = get_option('antek_chat_settings', array());
-        $chat_provider = isset($settings['chat_provider']) ? $settings['chat_provider'] : 'n8n';
+        // Get chat mode setting (v1.2.1+ structure)
+        $connection_settings = get_option('antek_chat_connection', array());
+        $chat_mode = isset($connection_settings['chat_mode']) ? $connection_settings['chat_mode'] : 'n8n';
 
-        Antek_Chat_Debug_Logger::log('chat', 'Chat provider selected', 'info', [
-            'provider' => $chat_provider
+        Antek_Chat_Debug_Logger::log('chat', 'Chat mode selected', 'info', [
+            'chat_mode' => $chat_mode
         ]);
 
         // Initialize handlers
@@ -111,18 +111,17 @@ class Antek_Chat_Plugin_Core {
         // Get conversation history for context
         $history = $session_manager->get_conversation($session_id);
 
-        // Route to appropriate provider
-        $result = null;
-        if ($chat_provider === 'n8n') {
-            Antek_Chat_Debug_Logger::log('chat', 'Routing to n8n webhook', 'info');
-            // Send to n8n webhook
-            $webhook_handler = new Antek_Chat_Webhook_Handler();
-            $result = $webhook_handler->send_message($session_id, $message, array(
-                'user_id' => get_current_user_id(),
-                'history' => $history,
-                'page_url' => $page_url,
-            ));
-        } else if ($chat_provider === 'voice_provider') {
+        // Route to webhook handler (handles both n8n and retell modes)
+        Antek_Chat_Debug_Logger::log('chat', 'Routing to webhook handler', 'info');
+        $webhook_handler = new Antek_Chat_Webhook_Handler();
+        $result = $webhook_handler->send_message($session_id, $message, array(
+            'user_id' => get_current_user_id(),
+            'history' => $history,
+            'page_url' => $page_url,
+        ));
+
+        // Legacy: Keep for backward compatibility if needed
+        if (false && isset($connection_settings['chat_provider']) && $connection_settings['chat_provider'] === 'voice_provider') {
             // Use configured voice provider for text chat
             require_once ANTEK_CHAT_PLUGIN_DIR . 'includes/providers/class-voice-provider-factory.php';
 
