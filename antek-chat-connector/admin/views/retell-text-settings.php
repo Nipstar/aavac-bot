@@ -174,9 +174,15 @@ jQuery(document).ready(function($) {
     $('#test-retell-text').on('click', function() {
         const createUrl = $('#n8n_create_session_url').val();
         const sendUrl = $('#n8n_send_message_url').val();
+        const agentId = $('#retell_agent_id').val();
 
         if (!createUrl || !sendUrl) {
             $('#test-result').html('<span style="color:red;">⚠️ Please enter both webhook URLs</span>');
+            return;
+        }
+
+        if (!agentId) {
+            $('#test-result').html('<span style="color:red;">⚠️ Please enter Retell Agent ID</span>');
             return;
         }
 
@@ -188,7 +194,11 @@ jQuery(document).ready(function($) {
             url: createUrl,
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({}),
+            data: JSON.stringify({
+                agent_id: agentId,
+                user_id: 1,
+                session_id: 'test_' + Date.now()
+            }),
             timeout: 10000,
             success: function(sessionResponse) {
                 if (sessionResponse && sessionResponse.success && sessionResponse.chat_id) {
